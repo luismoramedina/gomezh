@@ -1,3 +1,15 @@
 = Go Mesh
 
 https://github.com/opentracing/opentracing-go
+
+== TODO
+
+. start trace V
+. forward request V
+.. forward body V
+.. forward headers V
+. add traceid header to request V
+. save context to shared data X
+. validate security X
+. refactor and use packages X
+
