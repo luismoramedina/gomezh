@@ -11,24 +11,32 @@ import (
 )
 
 var tracer opentracing.Tracer
+var auths map[uint64]string
 
 func main() {
+	auths = make(map[uint64]string)
+
 	// 1) Create a opentracing.Tracer that does nothing, use a 
 	collector := new(zipkin.NopCollector)
 	tracer, _ = zipkin.NewTracer(
 		zipkin.NewRecorder(collector, false, "127.0.0.1:0", "mesh"))
 
-	handler := http.HandlerFunc(handleRequest)
+	handler := http.HandlerFunc(ingressHandler)
 	http.Handle("/", securityMiddleware(handler))
 	fmt.Println("Listening")
 	//   http.ListenAndServe(":8080", nethttp.Middleware(tracer, http.DefaultServeMux))
 	http.ListenAndServe(":8080", nil)
 }
 
-func handleRequest(w http.ResponseWriter, r *http.Request) {
+func ingressHandler(w http.ResponseWriter, r *http.Request) {
 	span := tracer.StartSpan("request")
 	defer span.Finish()
-	fmt.Println(span.Context().(zipkin.SpanContext).TraceID.Low)
+	reqId := span.Context().(zipkin.SpanContext).TraceID.Low
+	fmt.Println(reqId)
+
+	auths[reqId] = r.Header.Get("Authorization")
+
+	fmt.Printf("auths -> %+v\n", auths)
 
 	resp, _ := forwardRequest(w, r, span)
 
