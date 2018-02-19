@@ -7,6 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"fmt"
 	"net/http"
+	"log"
 )
 
 var tracer opentracing.Tracer
@@ -17,7 +18,8 @@ func main() {
 	tracer, _ = zipkin.NewTracer(
 		zipkin.NewRecorder(collector, false, "127.0.0.1:0", "mesh"))
 
-	http.HandleFunc("/", handleRequest)
+	handler := http.HandlerFunc(handleRequest)
+	http.Handle("/", securityMiddleware(handler))
 	fmt.Println("Listening")
 	//   http.ListenAndServe(":8080", nethttp.Middleware(tracer, http.DefaultServeMux))
 	http.ListenAndServe(":8080", nil)
@@ -44,6 +46,16 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(resBody)
 
+}
+func securityMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Executing security middleware")
+		if ((len(r.Header.Get("Authorization"))) == 0) {
+			http.Error(w, "no authorization header found", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 //https://stackoverflow.com/questions/34724160/go-http-send-incoming-http-request-to-an-other-server-using-client-do

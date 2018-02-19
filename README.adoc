@@ -4,12 +4,14 @@ https://github.com/opentracing/opentracing-go
 
 == TODO
 
-. start trace V
-. forward request V
+. start trace for ingress V
+. forward request two service V
 .. forward body V
 .. forward headers V
-. add traceid header to request V
+. add trace id header to request V
+. validate mock security V
 . save context to shared data X
-. validate security X
 . refactor and use packages X
+. move to log X
+. add service for egress traffic
 
