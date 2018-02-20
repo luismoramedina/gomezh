@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"bytes"
 	"github.com/luismoramedina/gomesh/sidecar"
+	"time"
 )
 
 type EgressController struct {
@@ -28,11 +29,12 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 	traceId := wireContext.(zipkin.SpanContext).TraceID.Low
 	log.Printf("Trace id: %d", traceId)
 
-	authorization := s.Auths[traceId]
+	authorization := s.Auths.Get(traceId)
+	defer s.Auths.Delete(traceId)
+
 	log.Printf("Injecting authorization: %s", authorization)
 
 	r.Header.Add("Authorization", authorization)
-	delete(s.Auths, traceId)
 
 	egressUrl := r.URL
 	log.Printf("egressUrl -> %+v\n", egressUrl)
@@ -42,9 +44,11 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 	service := split[0]
 	path := split[1]
 	resp, err := forwardRequest(w, r, service, path)
+	defer s.showElapsed(traceId)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
+		log.Println(err)
 		return
 	}
 
@@ -62,6 +66,13 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(resBody)
+}
+
+func (s EgressController) showElapsed(traceId uint64) {
+	start := s.Times.Get(traceId)
+	s.Times.Delete(traceId)
+	elapsed := time.Now().Sub(start)
+	log.Printf("[TIME] request %d -> %f", traceId, elapsed.Seconds())
 }
 
 func forwardRequest(w http.ResponseWriter, req *http.Request, service string, path string) (*http.Response, error) {

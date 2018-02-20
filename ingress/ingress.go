@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"log"
 	"github.com/luismoramedina/gomesh/sidecar"
+	"time"
 )
 
 type IngressController struct {
@@ -16,15 +17,15 @@ type IngressController struct {
 }
 
 func (s IngressController) Handler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	log.Println("Starting ingress request")
 	span := s.Tracer.StartSpan("request")
 	defer span.Finish()
 	reqId := span.Context().(zipkin.SpanContext).TraceID.Low
 	log.Printf("Traceid: %d", reqId)
 
-	s.Auths[reqId] = r.Header.Get("Authorization")
-
-	log.Printf("auths -> %+v\n", s.Auths)
+	s.Times.Put(reqId, start)
+	s.Auths.Put(reqId, r.Header.Get("Authorization"))
 
 	resp, err := s.forwardRequest(w, r, span)
 	if err != nil {
