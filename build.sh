@@ -12,7 +12,7 @@ docker tag books luismoramedina/books
 docker push luismoramedina/books
 
 
-cd ./stars/stars
+cd ./samples/stars/
 mvn clean package
 docker build . -t stars
 docker tag stars luismoramedina/stars
