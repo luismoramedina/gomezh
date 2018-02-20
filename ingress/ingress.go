@@ -1,4 +1,4 @@
-package main
+package ingress
 
 import (
 	zipkin "github.com/openzipkin/zipkin-go-opentracing"
@@ -8,45 +8,23 @@ import (
 	"fmt"
 	"net/http"
 	"log"
-	"github.com/luismoramedina/gomesh/egress"
 	"github.com/luismoramedina/gomesh/sidecar"
 )
-
-var tracer opentracing.Tracer
-var auths map[uint64]string
 
 type IngressController struct {
 	sidecar.Sidecar
 }
 
-func main() {
-	auths = make(map[uint64]string)
-
-	// 1) Create a opentracing.Tracer that does nothing, use a 
-	collector := new(zipkin.NopCollector)
-	tracer, _ = zipkin.NewTracer(
-		zipkin.NewRecorder(collector, false, "127.0.0.1:0", "mesh"))
-
-	egressController := egress.EgressController{sidecar.Sidecar{Tracer: tracer, Auths: auths}}
-	ingressController := IngressController{sidecar.Sidecar{Tracer: tracer, Auths: auths}}
-
-	ingressHandler := http.HandlerFunc(ingressController.handler)
-	egressHandler := http.HandlerFunc(egressController.Handler)
-	log.Printf("Listening ingress %s, egress %s", ":8080" ,":8082")
-	go http.ListenAndServe(":8082", egressHandler)
-	http.ListenAndServe(":8080", securityMiddleware(ingressHandler))
-}
-
-func (s IngressController) handler(w http.ResponseWriter, r *http.Request) {
+func (s IngressController) Handler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting ingress request")
 	span := s.Tracer.StartSpan("request")
 	defer span.Finish()
 	reqId := span.Context().(zipkin.SpanContext).TraceID.Low
 	log.Printf("Traceid: %d", reqId)
 
-	auths[reqId] = r.Header.Get("Authorization")
+	s.Auths[reqId] = r.Header.Get("Authorization")
 
-	log.Printf("auths -> %+v\n", auths)
+	log.Printf("auths -> %+v\n", s.Auths)
 
 	resp, err := s.forwardRequest(w, r, span)
 	if err != nil {
@@ -69,7 +47,7 @@ func (s IngressController) handler(w http.ResponseWriter, r *http.Request) {
 	w.Write(resBody)
 
 }
-func securityMiddleware(next http.Handler) http.Handler {
+func SecurityMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Executing security middleware")
 		if ((len(r.Header.Get("Authorization"))) == 0) {
