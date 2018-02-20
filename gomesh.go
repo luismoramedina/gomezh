@@ -9,10 +9,15 @@ import (
 	"net/http"
 	"log"
 	"github.com/luismoramedina/gomesh/egress"
+	"github.com/luismoramedina/gomesh/sidecar"
 )
 
 var tracer opentracing.Tracer
 var auths map[uint64]string
+
+type IngressController struct {
+	sidecar.Sidecar
+}
 
 func main() {
 	auths = make(map[uint64]string)
@@ -22,27 +27,28 @@ func main() {
 	tracer, _ = zipkin.NewTracer(
 		zipkin.NewRecorder(collector, false, "127.0.0.1:0", "mesh"))
 
-	egress.Tracer = tracer
-	egress.Auths = auths
-	ingressHandler := http.HandlerFunc(ingressHandler)
-	egressHandler := http.HandlerFunc(egress.EgressHandler)
+	egressController := egress.EgressController{sidecar.Sidecar{Tracer: tracer, Auths: auths}}
+	ingressController := IngressController{sidecar.Sidecar{Tracer: tracer, Auths: auths}}
+
+	ingressHandler := http.HandlerFunc(ingressController.handler)
+	egressHandler := http.HandlerFunc(egressController.Handler)
 	log.Printf("Listening ingress %s, egress %s", ":8080" ,":8082")
 	go http.ListenAndServe(":8082", egressHandler)
 	http.ListenAndServe(":8080", securityMiddleware(ingressHandler))
 }
 
-func ingressHandler(w http.ResponseWriter, r *http.Request) {
+func (s IngressController) handler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting ingress request")
-	span := tracer.StartSpan("request")
+	span := s.Tracer.StartSpan("request")
 	defer span.Finish()
 	reqId := span.Context().(zipkin.SpanContext).TraceID.Low
-	log.Println(reqId)
+	log.Printf("Traceid: %d", reqId)
 
 	auths[reqId] = r.Header.Get("Authorization")
 
 	log.Printf("auths -> %+v\n", auths)
 
-	resp, err := forwardRequest(w, r, span)
+	resp, err := s.forwardRequest(w, r, span)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -75,7 +81,7 @@ func securityMiddleware(next http.Handler) http.Handler {
 }
 
 //https://stackoverflow.com/questions/34724160/go-http-send-incoming-http-request-to-an-other-server-using-client-do
-func forwardRequest(w http.ResponseWriter, req *http.Request, span opentracing.Span) (*http.Response, error) {
+func (s IngressController) forwardRequest(w http.ResponseWriter, req *http.Request, span opentracing.Span) (*http.Response, error) {
 	// we need to buffer the body if we want to read it here and send it
 	// in the request.
 	body, err := ioutil.ReadAll(req.Body)
@@ -96,7 +102,7 @@ func forwardRequest(w http.ResponseWriter, req *http.Request, span opentracing.S
 
 	// Transmit the span's TraceContext as HTTP headers on our
 	// outbound request.
-	tracer.Inject(
+	s.Tracer.Inject(
 		span.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(proxyReq.Header))

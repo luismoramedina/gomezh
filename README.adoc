@@ -11,7 +11,8 @@ https://github.com/opentracing/opentracing-go
 . add trace id header to request V
 . validate mock security V
 . save context to shared data V
+. add service for egress traffic V
+
+. move to log V
 . refactor and use packages X
-. move to log X
-. add service for egress traffic
 

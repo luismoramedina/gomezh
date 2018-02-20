@@ -9,14 +9,16 @@ import (
 	"strings"
 	"io/ioutil"
 	"bytes"
+	"github.com/luismoramedina/gomesh/sidecar"
 )
 
-var Tracer opentracing.Tracer
-var Auths map[uint64]string
+type EgressController struct {
+	sidecar.Sidecar
+}
 
-func EgressHandler(w http.ResponseWriter, r *http.Request) {
+func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting Egress request")
-	wireContext, err := Tracer.Extract(
+	wireContext, err := s.Tracer.Extract(
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(r.Header))
 	if err != nil {
@@ -24,12 +26,13 @@ func EgressHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	traceId := wireContext.(zipkin.SpanContext).TraceID.Low
-	log.Println(traceId)
+	log.Printf("Trace id: %d", traceId)
 
-	authorization := Auths[traceId]
-	log.Println(authorization)
+	authorization := s.Auths[traceId]
+	log.Printf("Injecting authorization: %s", authorization)
 
 	r.Header.Add("Authorization", authorization)
+	delete(s.Auths, traceId)
 
 	egressUrl := r.URL
 	log.Printf("egressUrl -> %+v\n", egressUrl)
@@ -71,7 +74,7 @@ func forwardRequest(w http.ResponseWriter, req *http.Request, service string, pa
 		return nil, err
 	}
 
-//	url := fmt.Sprintf("%s://%s%s/%s", "http", "localhost", ":8083", path), local env
+	// url := fmt.Sprintf("%s://%s%s/%s", "http", "localhost", ":8083", path)//, local env
 	// create a new url from the raw RequestURI sent by the client
 	url := fmt.Sprintf("%s://%s%s/%s", "http", service, ":8080", path)
 
