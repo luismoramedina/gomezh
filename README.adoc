@@ -1,18 +1,14 @@
 = Go Mesh
 
+Sidecar sample app for kubernetes
+
+Using opentracing to keep data between ingress and egress traffic
 https://github.com/opentracing/opentracing-go
 
-== TODO
+== Features
 
-. start trace for ingress V
-. forward request two service V
-.. forward body V
-.. forward headers V
-. add trace id header to request V
-. validate mock security V
-. save context to shared data V
-. add service for egress traffic V
-
-. move to log V
-. refactor and use packages X
-
+* [x] http support
+* [x] validates and propagates security
+* [x] starts opentracing context and propagates through services (http headers)
+* [x] prints request time
+* [ ] stores stats

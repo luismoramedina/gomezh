@@ -1,0 +1,9 @@
+= Books
+
+== Run
+
+SERVER_PORT=8081 mvn spring-boot:run
+
+== Load tests
+
+ab -c 10 -n 2000 -H "Authorization: Bearer bla" http://0:8080/

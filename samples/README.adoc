@@ -1,0 +1,8 @@
+= Microservice composition sample
+
+This sample installs 2 microservice architecture. Books and stars.
+Books call stars to get the rating of a book.
+
+Both are installed in openshift near to the go sidecar, this sidecar
+handles ingress and egress traffic. It propagates security headers
+and handles opentracing stuff.
