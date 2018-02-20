@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"log"
+	"github.com/luismoramedina/gomesh/egress"
 )
 
 var tracer opentracing.Tracer
@@ -21,24 +22,31 @@ func main() {
 	tracer, _ = zipkin.NewTracer(
 		zipkin.NewRecorder(collector, false, "127.0.0.1:0", "mesh"))
 
-	handler := http.HandlerFunc(ingressHandler)
-	http.Handle("/", securityMiddleware(handler))
-	fmt.Println("Listening")
-	//   http.ListenAndServe(":8080", nethttp.Middleware(tracer, http.DefaultServeMux))
-	http.ListenAndServe(":8080", nil)
+	egress.Tracer = tracer
+	egress.Auths = auths
+	ingressHandler := http.HandlerFunc(ingressHandler)
+	egressHandler := http.HandlerFunc(egress.EgressHandler)
+	log.Printf("Listening ingress %s, egress %s", ":8080" ,":8082")
+	go http.ListenAndServe(":8082", egressHandler)
+	http.ListenAndServe(":8080", securityMiddleware(ingressHandler))
 }
 
 func ingressHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Starting ingress request")
 	span := tracer.StartSpan("request")
 	defer span.Finish()
 	reqId := span.Context().(zipkin.SpanContext).TraceID.Low
-	fmt.Println(reqId)
+	log.Println(reqId)
 
 	auths[reqId] = r.Header.Get("Authorization")
 
-	fmt.Printf("auths -> %+v\n", auths)
+	log.Printf("auths -> %+v\n", auths)
 
-	resp, _ := forwardRequest(w, r, span)
+	resp, err := forwardRequest(w, r, span)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
 
 	resBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -76,22 +84,15 @@ func forwardRequest(w http.ResponseWriter, req *http.Request, span opentracing.S
 		return nil, err
 	}
 
-	// you can reassign the body if you need to parse it as multipart
-	req.Body = ioutil.NopCloser(bytes.NewReader(body))
-
 	// create a new url from the raw RequestURI sent by the client
 	url := fmt.Sprintf("%s://%s%s", "http", "localhost:8081", req.RequestURI)
 
 	proxyReq, err := http.NewRequest(req.Method, url, bytes.NewReader(body))
 
 	// We may want to filter some headers, otherwise we could just use a shallow copy
-	// proxyReq.Header = req.Header
-	proxyReq.Header = make(http.Header)
-	for h, val := range req.Header {
-		proxyReq.Header[h] = val
-	}
+	proxyReq.Header = req.Header
 
-	fmt.Printf("spancontext-> %+v\n", span.Context())
+	log.Printf("spancontext-> %+v\n", span.Context())
 
 	// Transmit the span's TraceContext as HTTP headers on our
 	// outbound request.
@@ -103,7 +104,6 @@ func forwardRequest(w http.ResponseWriter, req *http.Request, span opentracing.S
 	httpClient := http.Client{}
 	resp, err := httpClient.Do(proxyReq)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
 		return nil, err
 	}
 
