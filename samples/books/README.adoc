@@ -4,6 +4,12 @@
 
 SERVER_PORT=8081 mvn spring-boot:run
 
+== Test
+
+curl -i http://0:8081/books
+curl -i -X POST -H "Content-type: application/json" http://0:8081/books -d "{\"id\":2100,\"title\":\"1984\",\"year\":\"1949\",\"author\":\"George Orwell\",\"stars\":5}"
+
 == Load tests
 
 ab -c 10 -n 2000 -H "Authorization: Bearer bla" http://0:8080/
+

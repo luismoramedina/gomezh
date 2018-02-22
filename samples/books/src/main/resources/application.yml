@@ -3,5 +3,5 @@
 # mesh/stars -> mesh is a prefix and stars is the kubernetes service name where the request must be forwarded
 # stars/{bookId} -> is the request path in the business logic application
 # so the sidecar api will forward the request to http://stars:8080/stars/{bookId}
-# the port 8080 is a convention one
+# the port 8080 is a convention. 8080 is the ingress of the other service
 stars.service.uri: "http://localhost:8082/mesh/stars/stars/{bookId}"
