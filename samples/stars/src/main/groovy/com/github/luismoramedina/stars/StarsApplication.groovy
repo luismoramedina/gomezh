@@ -23,8 +23,10 @@ class StarsApplication {
 	Star star(
 			@PathVariable String id,
 			@RequestHeader(value="Authorization", required = false) String auth,
+			@RequestHeader(value="X-B3-TraceId", required = false) String traceId,
 			@RequestHeader(value="Plain-authorization", required = false) String plainAuth) {
 
+		log.info "traceId: " + traceId
 		log.info "plainAuth: " + plainAuth
 		log.info "auth: " + auth
 		def star = new Star()
