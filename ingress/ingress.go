@@ -15,6 +15,7 @@ import (
 	"crypto/rsa"
 	"os"
 	"encoding/json"
+	"github.com/opentracing/opentracing-go/ext"
 )
 
 var rsaPublicKey *rsa.PublicKey
@@ -49,10 +50,29 @@ type IngressController struct {
 func (s IngressController) Handler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	log.Println("Starting ingress request")
-	span := s.Tracer.StartSpan("request")
-	defer span.Finish()
-	reqId := span.Context().(zipkin.SpanContext).TraceID.Low
-	log.Printf("Traceid: %d", reqId)
+
+	wireContext, err := s.Tracer.Extract(
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(r.Header))
+
+	var reqId uint64
+	var span opentracing.Span
+	if err != nil {
+		log.Println("Creating a new span")
+		log.Println(err)
+		span = s.Tracer.StartSpan("request")
+		reqId = span.Context().(zipkin.SpanContext).TraceID.Low
+		defer span.Finish()
+	} else {
+		log.Println("Using existing span")
+		reqId = wireContext.(zipkin.SpanContext).TraceID.Low
+		span = opentracing.StartSpan(
+			"request",
+			ext.RPCServerOption(wireContext))
+	}
+
+
+	log.Printf("Traceid: %x", reqId)
 
 	s.Times.Put(reqId, start)
 	secContext := sidecar.SecurityContext{}
@@ -63,6 +83,7 @@ func (s IngressController) Handler(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := s.forwardRequest(w, r, span)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
@@ -102,7 +123,7 @@ func SecurityMiddleware(next http.Handler) http.Handler {
 func (s IngressController) showElapsed(traceId uint64, start time.Time) {
 	s.Times.Delete(traceId)
 	elapsed := time.Now().Sub(start)
-	log.Printf("[TIME] request %d -> %f", traceId, elapsed.Seconds())
+	log.Printf("[TIME] request %x -> %f", traceId, elapsed.Seconds())
 }
 
 //https://stackoverflow.com/questions/34724160/go-http-send-incoming-http-request-to-an-other-server-using-client-do
