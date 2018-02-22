@@ -6,3 +6,18 @@ Books call stars to get the rating of a book.
 Both are installed in openshift near to the go sidecar, this sidecar
 handles ingress and egress traffic. It propagates security headers
 and handles opentracing stuff.
+
+== Test
+
+----
+curl -i http://$books-route-url/ -H "Authorization: $JWT"
+----
+
+----
+ab -c 10 -n 2000 -H "Authorization: $JWT" http://$books-route-url/
+----
+
+== Todo
+
+. Demostrar que el identificador generado por el proxy llega a stars
+. Hacer un cliente multithread con diferentes
