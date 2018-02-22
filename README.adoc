@@ -5,10 +5,21 @@ Sidecar sample app for kubernetes
 Using opentracing to keep data between ingress and egress traffic
 https://github.com/opentracing/opentracing-go
 
+== Local testing
+
+----
+curl -i http://0:8080/books -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIyMjEwMzk1NTIsImlzcyI6InRlc3QiLCJzdWIiOiJib2IifQ.OHuf7wL_XFk---LsGqC8HwJyHRiogcQIM2g3fEUdLjr8CjkZccrw20Ybq8FvD8Zw0wrzxEii8gbEnfjcAbFYUtwzQPGTHRgpvEZGCNJcuUrhkq3A5bLCArg2NANS-lZgFfEEGHY8TQB951MvVLvhu7z1q5C-eRLAZ-U10TwiGCguLL5W-SQhgHiPr6n6aVrOqWGE7h0lELQnjc2Eq7iZuULkRRMjJNE3H0F5qfxpmMj_mW3sGvq6UQTf1W3lEGA0ercTdguQy9e5JRa0DdkpwOhF8zlF29D0HP3N5EKV7W1MpChrqYuromTPrYjvetOCNVz3Nk_VeHH8qTW-hvHxQQ"
+----
+----
+curl -i -X POST http://0:8080/books -H "Content-type: application/json" -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIyMjEwMzk1NTIsImlzcyI6InRlc3QiLCJzdWIiOiJib2IifQ.OHuf7wL_XFk---LsGqC8HwJyHRiogcQIM2g3fEUdLjr8CjkZccrw20Ybq8FvD8Zw0wrzxEii8gbEnfjcAbFYUtwzQPGTHRgpvEZGCNJcuUrhkq3A5bLCArg2NANS-lZgFfEEGHY8TQB951MvVLvhu7z1q5C-eRLAZ-U10TwiGCguLL5W-SQhgHiPr6n6aVrOqWGE7h0lELQnjc2Eq7iZuULkRRMjJNE3H0F5qfxpmMj_mW3sGvq6UQTf1W3lEGA0ercTdguQy9e5JRa0DdkpwOhF8zlF29D0HP3N5EKV7W1MpChrqYuromTPrYjvetOCNVz3Nk_VeHH8qTW-hvHxQQ" -d "{\"id\":2100,\"title\":\"1984\",\"year\":\"1949\",\"author\":\"George Orwell\",\"stars\":5}"
+----
+
 == Features
 
 * [x] http support
 * [x] validates and propagates security
 * [x] starts opentracing context and propagates through services (http headers)
 * [x] prints request time
+* [x] validate jwt
+* [x] propagate plain security context
 * [ ] stores stats

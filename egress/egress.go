@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"github.com/luismoramedina/gomesh/sidecar"
 	"time"
+	"os"
 )
 
 type EgressController struct {
@@ -29,12 +30,13 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 	traceId := wireContext.(zipkin.SpanContext).TraceID.Low
 	log.Printf("Trace id: %d", traceId)
 
-	authorization := s.Auths.Get(traceId)
+	secContext := sidecar.SecurityContext(s.Auths.Get(traceId))
 	defer s.Auths.Delete(traceId)
 
-	log.Printf("Injecting authorization: %s", authorization)
+	log.Printf("Injecting authorization: %s", secContext.Token)
 
-	r.Header.Add("Authorization", authorization)
+	r.Header.Add("Authorization", secContext.Token)
+	r.Header.Add("Plain-Authorization", secContext.PlainContext)
 
 	egressUrl := r.URL
 	log.Printf("egressUrl -> %+v\n", egressUrl)
@@ -72,7 +74,7 @@ func (s EgressController) showElapsed(traceId uint64) {
 	start := s.Times.Get(traceId)
 	s.Times.Delete(traceId)
 	elapsed := time.Now().Sub(start)
-	log.Printf("[TIME] request %d -> %f", traceId, elapsed.Seconds())
+	log.Printf("[TIME-ie] request %d -> %f", traceId, elapsed.Seconds())
 }
 
 func forwardRequest(w http.ResponseWriter, req *http.Request, service string, path string) (*http.Response, error) {
@@ -85,9 +87,13 @@ func forwardRequest(w http.ResponseWriter, req *http.Request, service string, pa
 		return nil, err
 	}
 
-	// url := fmt.Sprintf("%s://%s%s/%s", "http", "localhost", ":8083", path)//, local env
-	// create a new url from the raw RequestURI sent by the client
-	url := fmt.Sprintf("%s://%s%s/%s", "http", service, ":8080", path)
+	var url string
+	if os.Getenv("ENV") == "local" {
+		url = fmt.Sprintf("%s://%s%s/%s", "http", "localhost", ":8083", path)//, local env
+	} else {
+		// create a new url from the raw RequestURI sent by the client
+		url = fmt.Sprintf("%s://%s%s/%s", "http", service, ":8080", path)
+	}
 
 
 	proxyReq, err := http.NewRequest(req.Method, url, bytes.NewReader(body))

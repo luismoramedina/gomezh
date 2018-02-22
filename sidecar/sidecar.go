@@ -6,9 +6,13 @@ import (
 	"sync"
 )
 
+type SecurityContext struct {
+	Token string
+	PlainContext string
+}
 type AuthMap struct {
 	sync.RWMutex
-	values map[uint64]string
+	values map[uint64]SecurityContext
 }
 
 type TimeMap struct {
@@ -40,13 +44,13 @@ func (t *TimeMap) Put(key uint64, value time.Time) {
 	t.values[key] = value
 }
 
-func (t *AuthMap) Get(key uint64) string {
+func (t *AuthMap) Get(key uint64) SecurityContext {
 	t.RLock()
 	defer t.RUnlock()
 	return t.values[key]
 }
 
-func (t *AuthMap) Put(key uint64, value string) {
+func (t *AuthMap) Put(key uint64, value SecurityContext) {
 	t.Lock()
 	defer t.Unlock()
 	t.values[key] = value
@@ -66,6 +70,6 @@ func NewTimeMap() *TimeMap {
 
 func NewAuthsMap() *AuthMap {
 	return &AuthMap{
-		values: make(map[uint64]string),
+		values: make(map[uint64]SecurityContext),
 	}
 }

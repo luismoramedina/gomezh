@@ -9,8 +9,38 @@ import (
 	"net/http"
 	"log"
 	"github.com/luismoramedina/gomesh/sidecar"
+	myjwt "github.com/luismoramedina/gomesh/jwt"
 	"time"
+	"github.com/dgrijalva/jwt-go"
+	"crypto/rsa"
+	"os"
+	"encoding/json"
 )
+
+var rsaPublicKey *rsa.PublicKey
+
+const defaultPKey string = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4f5wg5l2hKsTeNem/V41
+fGnJm6gOdrj8ym3rFkEU/wT8RDtnSgFEZOQpHEgQ7JL38xUfU0Y3g6aYw9QT0hJ7
+mCpz9Er5qLaMXJwZxzHzAahlfA0icqabvJOMvQtzD6uQv6wPEyZtDTWiQi9AXwBp
+HssPnpYGIn20ZZuNlX2BrClciHhCPUIIZOQn/MmqTD31jSyjoQoV7MhhMTATKJx2
+XrHhR+1DcKJzQBSTAGnpYVaqpsARap+nwRipr3nUTuxyGohBTSmjJ2usSeQXHI3b
+ODIRe1AuTyHceAbewn8b462yEWKARdpd9AjQW5SIVPfdsz5B6GlYQ5LdYKtznTuy
+7wIDAQAB
+-----END PUBLIC KEY-----`
+
+var jwtValidator myjwt.JwtValidator
+
+func init() {
+	log.Println("init ingress, loading public key")
+	var e error
+	rsaPublicKey, e = jwt.ParseRSAPublicKeyFromPEM([]byte(os.Getenv("PUBLIC_KEY")))
+	if e != nil {
+		rsaPublicKey, e = jwt.ParseRSAPublicKeyFromPEM([]byte(defaultPKey))
+		log.Println("Default key loaded")
+	}
+	jwtValidator = myjwt.JwtValidator{PublicKey: rsaPublicKey}
+}
 
 type IngressController struct {
 	sidecar.Sidecar
@@ -25,7 +55,11 @@ func (s IngressController) Handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Traceid: %d", reqId)
 
 	s.Times.Put(reqId, start)
-	s.Auths.Put(reqId, r.Header.Get("Authorization"))
+	secContext := sidecar.SecurityContext{}
+	secContext.Token = r.Header.Get("Authorization")
+	secContext.PlainContext = r.Header.Get("Plain-Authorization")
+	s.Auths.Put(reqId, secContext)
+	defer s.showElapsed(reqId, start)
 
 	resp, err := s.forwardRequest(w, r, span)
 	if err != nil {
@@ -45,18 +79,30 @@ func (s IngressController) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.WriteHeader(resp.StatusCode)
 	w.Write(resBody)
 
 }
 func SecurityMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Executing security middleware")
-		if ((len(r.Header.Get("Authorization"))) == 0) {
-			http.Error(w, "no authorization header found", http.StatusForbidden)
+		ok, claims := jwtValidator.IsValidCredential(r.Header.Get("Authorization"));
+		if !ok {
+			http.Error(w, "not valid credentials or no credentials", http.StatusForbidden)
 			return
+		}
+		plainSecContext, err := json.Marshal(claims)
+		if err == nil {
+			r.Header.Add("Plain-authorization", string(plainSecContext))
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s IngressController) showElapsed(traceId uint64, start time.Time) {
+	s.Times.Delete(traceId)
+	elapsed := time.Now().Sub(start)
+	log.Printf("[TIME] request %d -> %f", traceId, elapsed.Seconds())
 }
 
 //https://stackoverflow.com/questions/34724160/go-http-send-incoming-http-request-to-an-other-server-using-client-do
