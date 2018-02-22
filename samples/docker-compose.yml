@@ -1,0 +1,40 @@
+version: "3"
+services:
+  # books proxy
+  books:
+    container_name: books
+    image: gomesh
+    ports:
+    - "8080:8080"
+    networks:
+    - booksnet
+    - commonnet
+
+  # books microservice
+  books-ms:
+    image: books
+    environment:
+    - affinity:container==books
+    ipc: container:books
+    network_mode: service:books
+
+  # stars proxy
+  stars:
+    container_name: stars
+    image: gomesh
+    networks:
+    - starsnet
+    - commonnet
+
+  # stars microservice
+  stars-ms:
+    image: stars
+    environment:
+    - affinity:container==stars
+    ipc: container:stars
+    network_mode: service:stars
+
+networks:
+  booksnet:
+  starsnet:
+  commonnet:
