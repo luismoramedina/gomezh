@@ -28,7 +28,7 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	traceId := wireContext.(zipkin.SpanContext).TraceID.Low
-	log.Printf("Trace id: %d", traceId)
+	log.Printf("Trace id: %x", traceId)
 
 	secContext := sidecar.SecurityContext(s.Auths.Get(traceId))
 	defer s.Auths.Delete(traceId)
@@ -74,7 +74,7 @@ func (s EgressController) showElapsed(traceId uint64) {
 	start := s.Times.Get(traceId)
 	s.Times.Delete(traceId)
 	elapsed := time.Now().Sub(start)
-	log.Printf("[TIME-ie] request %d -> %f", traceId, elapsed.Seconds())
+	log.Printf("[TIME-ie] request %x -> %f", traceId, elapsed.Seconds())
 }
 
 func forwardRequest(w http.ResponseWriter, req *http.Request, service string, path string) (*http.Response, error) {
