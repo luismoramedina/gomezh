@@ -5,9 +5,9 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"log"
-	"github.com/luismoramedina/gomesh/egress"
-	"github.com/luismoramedina/gomesh/sidecar"
-	"github.com/luismoramedina/gomesh/ingress"
+	"github.com/luismoramedina/gomezh/egress"
+	"github.com/luismoramedina/gomezh/sidecar"
+	"github.com/luismoramedina/gomezh/ingress"
 	"time"
 )
 

@@ -3,7 +3,7 @@ services:
   # books proxy
   books:
     container_name: books
-    image: gomesh
+    image: gomezh
     ports:
     - "8080:8080"
     networks:
@@ -11,27 +11,29 @@ services:
     - commonnet
 
   # books microservice
+  # ipc is not needed to access via loopback
   books-ms:
     image: books
-    environment:
-    - affinity:container==books
-    ipc: container:books
+#    environment:
+#    - affinity:container==books
+#    ipc: container:books
     network_mode: service:books
 
   # stars proxy
   stars:
     container_name: stars
-    image: gomesh
+    image: gomezh
     networks:
     - starsnet
     - commonnet
 
   # stars microservice
+  # ipc is not needed to access via loopback
   stars-ms:
     image: stars
-    environment:
-    - affinity:container==stars
-    ipc: container:stars
+#    environment:
+#    - affinity:container==stars
+#    ipc: container:stars
     network_mode: service:stars
 
 networks:

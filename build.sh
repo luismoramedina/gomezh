@@ -2,9 +2,9 @@
 set -e
 
 go build
-docker build . -t gomesh
-docker tag gomesh luismoramedina/gomesh
-docker push luismoramedina/gomesh
+docker build . -t gomezh
+docker tag gomezh luismoramedina/gomezh
+docker push luismoramedina/gomezh
 
 cd ./samples/books
 mvn clean package

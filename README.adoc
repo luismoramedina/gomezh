@@ -1,4 +1,4 @@
-= Go Mesh
+= GoMezh
 
 Sidecar sample app for kubernetes
 

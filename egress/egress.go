@@ -9,7 +9,7 @@ import (
 	"strings"
 	"io/ioutil"
 	"bytes"
-	"github.com/luismoramedina/gomesh/sidecar"
+	"github.com/luismoramedina/gomezh/sidecar"
 	"time"
 	"os"
 )
@@ -36,7 +36,6 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Injecting authorization: %s", secContext.Token)
 
 	r.Header.Add("Authorization", secContext.Token)
-	r.Header.Add("Plain-Authorization", secContext.PlainContext)
 
 	egressUrl := r.URL
 	log.Printf("egressUrl -> %+v\n", egressUrl)
