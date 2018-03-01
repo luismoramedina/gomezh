@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"bytes"
 	"github.com/opentracing/opentracing-go"
-	"fmt"
 	"net/http"
 	"log"
 	"github.com/luismoramedina/gomezh/sidecar"
@@ -16,6 +15,7 @@ import (
 	"os"
 	"encoding/json"
 	"github.com/opentracing/opentracing-go/ext"
+	"fmt"
 )
 
 var rsaPublicKey *rsa.PublicKey
@@ -139,6 +139,7 @@ func (s IngressController) forwardRequest(w http.ResponseWriter, req *http.Reque
 	// create a new url from the raw RequestURI sent by the client
 	url := fmt.Sprintf("%s://%s%s", "http", "localhost:8081", req.RequestURI)
 
+	log.Printf("ingress Forwarding -> %s\n", url)
 	proxyReq, err := http.NewRequest(req.Method, url, bytes.NewReader(body))
 
 	// We may want to filter some headers, otherwise we could just use a shallow copy
