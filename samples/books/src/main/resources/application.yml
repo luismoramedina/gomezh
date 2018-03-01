@@ -1,1 +1,1 @@
-stars.service.uri: "http://stars:8080/stars/{bookId}"
+stars.service.uri: "http://stars:8081/stars/{bookId}"
