@@ -5,13 +5,11 @@ import (
 	"net/http"
 	"github.com/opentracing/opentracing-go"
 	"log"
-	"fmt"
-	"strings"
 	"io/ioutil"
-	"bytes"
 	"github.com/luismoramedina/gomezh/sidecar"
 	"time"
-	"os"
+	"bytes"
+	"fmt"
 )
 
 type EgressController struct {
@@ -37,19 +35,12 @@ func (s EgressController) Handler(w http.ResponseWriter, r *http.Request) {
 
 	r.Header.Add("Authorization", secContext.Token)
 
-	egressUrl := r.URL
-	log.Printf("egressUrl -> %+v\n", egressUrl)
-	newUrl := egressUrl.Path
-	newUrl = strings.Replace(newUrl, "/mesh/", "", 1)
-	split := strings.SplitN(newUrl, "/", 2)
-	service := split[0]
-	path := split[1]
-	resp, err := forwardRequest(w, r, service, path)
+	resp, err := forwardRequest(w, r)
 	defer s.showElapsed(traceId)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
 		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 
@@ -76,25 +67,19 @@ func (s EgressController) showElapsed(traceId uint64) {
 	log.Printf("[TIME-ie] request %x -> %f", traceId, elapsed.Seconds())
 }
 
-func forwardRequest(w http.ResponseWriter, req *http.Request, service string, path string) (*http.Response, error) {
+func forwardRequest(w http.ResponseWriter, req *http.Request) (*http.Response, error) {
 	log.Println("Forwarding request")
-	// we need to buffer the body if we want to read it here and send it
-	// in the request.
+
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return nil, err
 	}
 
-	var url string
-	if os.Getenv("ENV") == "local" {
-		url = fmt.Sprintf("%s://%s%s/%s", "http", "localhost", ":8083", path)//, local env
-	} else {
-		// create a new url from the raw RequestURI sent by the client
-		url = fmt.Sprintf("%s://%s%s/%s", "http", service, ":8080", path)
-	}
+	// create a new url from the raw RequestURI sent by the client
+	url := fmt.Sprintf("%s://%s%s", "http", req.Host, req.RequestURI)
 
-
+	log.Printf("egress Forwarding -> %s\n", url)
 	proxyReq, err := http.NewRequest(req.Method, url, bytes.NewReader(body))
 
 	// We may want to filter some headers, otherwise we could just use a shallow copy

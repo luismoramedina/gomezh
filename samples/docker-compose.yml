@@ -4,20 +4,20 @@ services:
   books:
     container_name: books
     image: gomezh
+    network_mode: service:books-ms
+    cap_add:
+      - NET_ADMIN
+
+  # books microservice
+  books-ms:
+    image: books
+    environment:
+      STARS_SERVICE_URI: "http://stars:8081/stars/{bookId}"
     ports:
-    - "8080:8080"
+    - "8081:8081"
     networks:
     - booksnet
     - commonnet
-
-  # books microservice
-  # ipc is not needed to access via loopback
-  books-ms:
-    image: books
-#    environment:
-#    - affinity:container==books
-#    ipc: container:books
-    network_mode: service:books
 
   # stars proxy
   stars:
@@ -26,14 +26,12 @@ services:
     networks:
     - starsnet
     - commonnet
+    cap_add:
+      - NET_ADMIN
 
   # stars microservice
-  # ipc is not needed to access via loopback
   stars-ms:
     image: stars
-#    environment:
-#    - affinity:container==stars
-#    ipc: container:stars
     network_mode: service:stars
 
 networks:
